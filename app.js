@@ -9,6 +9,23 @@ var CURR={GBP:{symbol:'£',rate:1},USD:{symbol:'$',rate:1.27},EUR:{symbol:'€',
   AUD:{symbol:'A$',rate:1.93},CAD:{symbol:'C$',rate:1.74},PHP:{symbol:'₱',rate:71},
   BRL:{symbol:'R$',rate:7.1},NGN:{symbol:'₦',rate:1950},SGD:{symbol:'S$',rate:1.65}};
 var CUR={code:'GBP',symbol:'£',rate:1};
+var ICO={
+  target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>',
+  bars:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg>',
+  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
+  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
+};
+function initials(email,name){
+  name=(name||'').trim();
+  if(name){ var p=name.split(/\s+/); return (p[0].charAt(0)+(p[1]?p[1].charAt(0):'')).toUpperCase(); }
+  email=(email||'').trim();
+  var loc=email.split('@')[0]||'';
+  return (loc.slice(0,2)||'??').toUpperCase();
+}
+function identifyUser(u){
+  U=u; $('who').textContent=u.email;
+  var av=$('avatar'); if(av) av.textContent=initials(u.email,u.user_metadata&&u.user_metadata.name);
+}
 function money(v,dp){ return CUR.symbol+fmt(v*CUR.rate,dp===undefined?2:dp); }
 function fillCurrencyInputs(){
   var sel=$('cur-select'), sy=$('cur-symbol'), ra=$('cur-rate');
@@ -219,18 +236,20 @@ function renderTop(){
   var byName=itemMap(), gold=0, marked=0;
   D.packs.forEach(function(p){ if(n(uPacks[p.id])>0) marked++;
     if(calcPack(p,byName).verdict==='Must buy') gold++; });
-  var avg=withT?sum/withT:0, bud=budget();
-  $('dcount').textContent=days(); $('dnext').textContent=D.settings.next_svs||'';
+  var avg=withT?sum/withT:0, bud=budget(), dleft=days();
   $('stats').innerHTML=
-    '<div class="stat"><span class="lbl">Targets met</span><b>'+met+' / '+withT+'</b>'+
-    '<small>'+behind+' behind after plan</small><div class="bar"><i style="width:'+
-      (withT?met/withT*100:0).toFixed(0)+'%;background:var(--good)"></i></div></div>'+
-    '<div class="stat"><span class="lbl">Average progress</span><b>'+Math.round(avg*100)+'%</b>'+
-    '<small>across '+withT+' targets</small><div class="bar"><i style="width:'+(avg*100).toFixed(0)+'%"></i></div></div>'+
-    '<div class="stat"><span class="lbl">Monthly spend</span><b>'+money(bud)+'</b>'+
-    '<small>'+esc(CUR.code)+'</small></div>'+
-    '<div class="stat"><span class="lbl">Packs marked</span><b>'+marked+'</b>'+
-    '<small>of '+D.packs.length+' · '+gold+' must buy</small></div>';
+    '<div class="stat c-blue"><span class="sicon">'+ICO.target+'</span><span class="lbl">Targets met</span>'+
+    '<b>'+met+' / '+withT+'</b><small>'+behind+' behind after plan</small>'+
+    '<div class="bar"><i style="width:'+(withT?met/withT*100:0).toFixed(0)+'%;background:var(--good)"></i></div></div>'+
+    '<div class="stat c-green"><span class="sicon">'+ICO.bars+'</span><span class="lbl">Average progress</span>'+
+    '<b>'+Math.round(avg*100)+'%</b><small>across '+withT+' targets</small>'+
+    '<div class="bar"><i style="width:'+(avg*100).toFixed(0)+'%"></i></div></div>'+
+    '<div class="stat c-violet"><span class="sicon coin">'+esc(CUR.symbol)+'</span><span class="lbl">Monthly spend</span>'+
+    '<b>'+money(bud)+'</b><small>'+esc(CUR.code)+'</small></div>'+
+    '<div class="stat c-ember"><span class="sicon">'+ICO.box+'</span><span class="lbl">Packs marked</span>'+
+    '<b>'+marked+'</b><small>of '+D.packs.length+' &middot; '+gold+' must buy</small></div>'+
+    '<div class="stat c-blue hi"><span class="sicon">'+ICO.calendar+'</span><span class="lbl">Days to next SvS</span>'+
+    '<b>'+dleft+'</b><small>'+esc(D.settings.next_svs||'')+'</small></div>';
   $('c-all').textContent='All '+D.items.length;
   $('c-behind').textContent='Behind ('+behind+')';
   $('c-pall').textContent='All '+D.packs.length;
@@ -348,8 +367,7 @@ document.addEventListener('click',function(e){
 /* ---------- auth ---------- */
 function authMsg(t,ok){ var e=$('authmsg'); e.textContent=t||''; e.className='authmsg'+(ok?' ok':''); }
 function showAuth(){ $('auth').style.display=''; $('app').style.display='none'; $('userbar').style.display='none'; }
-function showApp(){ $('auth').style.display='none'; $('app').style.display=''; $('userbar').style.display='';
-  var cb=$('countbox'); if(cb) cb.style.visibility='visible'; }
+function showApp(){ $('auth').style.display='none'; $('app').style.display=''; $('userbar').style.display=''; }
 
 async function loadAll(){
   say('loading…');
@@ -387,14 +405,14 @@ async function boot(){
     return; }
   SB=window.supabase.createClient(CONFIG.url,CONFIG.key);
   var s=await SB.auth.getSession();
-  if(s.data.session){ U=s.data.session.user; $('who').textContent=U.email; await loadAll(); }
+  if(s.data.session){ identifyUser(s.data.session.user); await loadAll(); }
   else showAuth();
 
   $('signin').addEventListener('submit',async function(e){
     e.preventDefault(); authMsg('Signing in…');
     var r=await SB.auth.signInWithPassword({email:$('si-email').value.trim(),password:$('si-pw').value});
     if(r.error) return authMsg(r.error.message);
-    U=r.data.user; $('who').textContent=U.email; authMsg(''); await loadAll();
+    identifyUser(r.data.user); authMsg(''); await loadAll();
   });
   $('signup').addEventListener('submit',async function(e){
     e.preventDefault();
@@ -403,7 +421,7 @@ async function boot(){
     var r=await SB.auth.signUp({email:$('su-email').value.trim(),password:$('su-pw').value,
       options:{data:{name:$('su-name').value.trim()}}});
     if(r.error) return authMsg(r.error.message);
-    if(r.data.session){ U=r.data.user; $('who').textContent=U.email; authMsg(''); await loadAll(); }
+    if(r.data.session){ identifyUser(r.data.user); authMsg(''); await loadAll(); }
     else authMsg('Check your email to confirm the account, then sign in.',1);
   });
   $('forgot').addEventListener('click',async function(){
