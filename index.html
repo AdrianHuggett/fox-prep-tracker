@@ -118,7 +118,7 @@ var CONFIG = {
  value alone. Gems are ignored. Bars are scaled to 300%.</p>
  <div class="tw"><table id="packs"><thead><tr><th></th>
  <th class="so" data-sort="name" data-label="Pack">Pack</th>
- <th class="num so" data-sort="price" data-label="Price &pound;">Price &pound;</th>
+ <th class="num so" data-sort="price" data-label="Price">Price</th>
  <th class="num so" data-sort="freq" data-label="Buy / mo">Buy / mo</th>
  <th>Best item for you</th>
  <th class="num so" data-sort="pv" data-label="Pack value %">Pack value %</th>
@@ -140,6 +140,30 @@ var CONFIG = {
    <h3>Cycle</h3>
    <div class="frow"><span>Next SvS date</span><b id="svsdate"></b></div>
    <div class="frow"><span>MUR per &pound;</span><b id="murrate"></b></div>
+  </div>
+  <div class="card">
+   <h3>My currency</h3>
+   <p class="hint" style="margin:0 0 8px">Changes how prices and monthly spend look for you only — nobody else in the alliance is affected.</p>
+   <div class="frow"><span>Quick pick</span>
+    <select id="cur-select" class="wide">
+     <option value="GBP">British Pound (£)</option>
+     <option value="USD">US Dollar ($)</option>
+     <option value="EUR">Euro (€)</option>
+     <option value="MUR">Mauritian Rupee (Rs)</option>
+     <option value="INR">Indian Rupee (₹)</option>
+     <option value="ZAR">South African Rand (R)</option>
+     <option value="AUD">Australian Dollar (A$)</option>
+     <option value="CAD">Canadian Dollar (C$)</option>
+     <option value="PHP">Philippine Peso (₱)</option>
+     <option value="BRL">Brazilian Real (R$)</option>
+     <option value="NGN">Nigerian Naira (₦)</option>
+     <option value="SGD">Singapore Dollar (S$)</option>
+     <option value="CUSTOM">Custom…</option>
+    </select>
+   </div>
+   <div class="frow"><span>Symbol</span><input id="cur-symbol" class="wide" type="text" maxlength="4" style="width:70px;text-align:right"></div>
+   <div class="frow"><span>Units per &pound;</span><input id="cur-rate" class="wide" type="number" step="any" style="width:100px;text-align:right"></div>
+   <p class="hint" style="margin:8px 0 0">Set manually — rates aren’t fetched automatically, so keep this roughly current yourself.</p>
   </div>
   <div class="card" style="grid-column:span 2">
    <h3>Torxim value per unit ($)</h3>
