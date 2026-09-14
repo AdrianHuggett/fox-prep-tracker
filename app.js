@@ -4,6 +4,23 @@
 var SB=null, U=null, D={items:[],packs:[],contents:{},base:{},settings:{}}, uPacks={};
 var timers={}, sync=document.getElementById('sync');
 var sortMode='section', sortDir=-1;
+var CURR={GBP:{symbol:'£',rate:1},USD:{symbol:'$',rate:1.27},EUR:{symbol:'€',rate:1.17},
+  MUR:{symbol:'Rs',rate:63.4},INR:{symbol:'₹',rate:106},ZAR:{symbol:'R',rate:23.5},
+  AUD:{symbol:'A$',rate:1.93},CAD:{symbol:'C$',rate:1.74},PHP:{symbol:'₱',rate:71},
+  BRL:{symbol:'R$',rate:7.1},NGN:{symbol:'₦',rate:1950},SGD:{symbol:'S$',rate:1.65}};
+var CUR={code:'GBP',symbol:'£',rate:1};
+function money(v,dp){ return CUR.symbol+fmt(v*CUR.rate,dp===undefined?2:dp); }
+function fillCurrencyInputs(){
+  var sel=$('cur-select'), sy=$('cur-symbol'), ra=$('cur-rate');
+  if(!sel) return;
+  sel.value = CURR[CUR.code] ? CUR.code : 'CUSTOM';
+  sy.value = CUR.symbol; ra.value = CUR.rate;
+}
+function saveCurrency(){
+  queue('currency',function(){
+    return SB.from('profiles').update({currency_code:CUR.code,currency_symbol:CUR.symbol,currency_rate:n(CUR.rate)}).eq('id',U.id);
+  });
+}
 
 function say(t,warn){ if(sync){ sync.textContent=t||''; sync.className=warn?'warn':''; } }
 window.onerror=function(m){ say('error: '+String(m).slice(0,60),1); };
@@ -119,6 +136,8 @@ function renderStock(){
 function packRank(v){ return {'Must buy':4,'Item buy':3,'Worth checking':2,'Last resort':1,'—':0}[v]||0; }
 function renderPacks(){
   var byName=itemMap(), out=[], sec=null, grp=null;
+  var priceTh=document.querySelector('#packs thead th[data-sort="price"]');
+  if(priceTh) priceTh.setAttribute('data-label','Price '+CUR.symbol);
   var VP={'Must buy':'p-gold','Item buy':'p-item','Worth checking':'p-pack','Last resort':'p-low','—':'p-na'};
   var list=D.packs.map(function(p,i){ return {p:p,i:i,c:calcPack(p,byName)}; });
   if(sortMode!=='section'){
@@ -150,7 +169,7 @@ function renderPacks(){
       '<td class="ic">'+esc(p.icon||'·')+'</td>'+
       '<td class="nm">'+esc(p.name)+'<div class="mini">'+
         esc(sortMode==='section'?(p.occurrence||''):((p.grp||'')+(p.occurrence?' · '+p.occurrence:'')))+'</div></td>'+
-      '<td class="num">'+fmt(n(p.price),2)+'</td>'+
+      '<td class="num">'+fmt(n(p.price)*CUR.rate,2)+'</td>'+
       '<td>'+inp(uPacks[p.id]||0,'t2','data-pid="'+p.id+'"')+'</td>'+
       '<td>'+(c.best?esc(c.best):'<span class="mini">'+(c.scoreable?'—':'contents not priced')+'</span>')+'</td>'+
       '<td class="num">'+vb(c.pv,'var(--ice)')+'</td>'+
@@ -179,7 +198,7 @@ function renderMatrix(){
   D.packs.forEach(function(p){
     var c=D.contents[p.id]||{};
     out.push('<tr data-q="'+esc(p.name.toLowerCase())+'"><td>'+esc(p.name)+
-      ' <span class="mini">£'+fmt(n(p.price),2)+'</span></td>'+
+      ' <span class="mini">'+money(n(p.price))+'</span></td>'+
       cols.map(function(col){
         return '<td class="num">'+(c[col]===undefined?'<span class="mini">·</span>':fmt(n(c[col])))+'</td>';
       }).join('')+'</tr>');
@@ -208,8 +227,8 @@ function renderTop(){
       (withT?met/withT*100:0).toFixed(0)+'%;background:var(--good)"></i></div></div>'+
     '<div class="stat"><span class="lbl">Average progress</span><b>'+Math.round(avg*100)+'%</b>'+
     '<small>across '+withT+' targets</small><div class="bar"><i style="width:'+(avg*100).toFixed(0)+'%"></i></div></div>'+
-    '<div class="stat"><span class="lbl">Monthly spend</span><b>£'+fmt(bud,2)+'</b>'+
-    '<small>≈ MUR '+fmt(bud*n(D.settings.mur||63.4))+'</small></div>'+
+    '<div class="stat"><span class="lbl">Monthly spend</span><b>'+money(bud)+'</b>'+
+    '<small>'+esc(CUR.code)+'</small></div>'+
     '<div class="stat"><span class="lbl">Packs marked</span><b>'+marked+'</b>'+
     '<small>of '+D.packs.length+' · '+gold+' must buy</small></div>';
   $('c-all').textContent='All '+D.items.length;
@@ -252,7 +271,7 @@ function renderDash(){
   $('d-buy').innerHTML=buys.map(function(o,i){
     var tone=o.c.verdict==='Must buy'?'p-gold':(o.c.verdict==='Item buy'?'p-item':'p-pack');
     return '<li class="drow"><span class="rank">'+(i+1)+'</span>'+
-      '<span class="dname">'+esc(o.p.name)+'<em>'+esc(o.c.best||'')+' · £'+fmt(n(o.p.price),2)+'</em></span>'+
+      '<span class="dname">'+esc(o.p.name)+'<em>'+esc(o.c.best||'')+' · '+money(n(o.p.price))+'</em></span>'+
       '<span class="dbarwrap">'+dbar(Math.min(100,o.c.iv/300*100),'var(--ember)')+'</span>'+
       '<b class="dval">'+Math.round(o.c.iv)+'%</b>'+
       '<span class="pill '+tone+'">'+esc(o.c.verdict)+'</span></li>'; }).join('')
@@ -340,7 +359,8 @@ async function loadAll(){
     SB.from('packs').select('*').order('sort'),
     SB.from('pack_contents').select('*'),
     SB.from('user_items').select('*').order('sort'),
-    SB.from('user_packs').select('*')
+    SB.from('user_packs').select('*'),
+    SB.from('profiles').select('currency_code,currency_symbol,currency_rate').eq('id',U.id).maybeSingle()
   ]);
   var err=r.find(function(x){ return x.error; });
   if(err){ say('could not load: '+err.error.message,1); return; }
@@ -351,6 +371,9 @@ async function loadAll(){
   D.items=r[4].data.map(function(i){ return {sort:i.sort,grp:i.grp,icon:i.icon,name:i.name,
     have:Number(i.have),target:Number(i.target),free:Number(i.free)}; });
   uPacks={}; r[5].data.forEach(function(p){ uPacks[p.pack_id]=Number(p.freq); });
+  var prof=r[6]&&r[6].data;
+  if(prof){ CUR.code=prof.currency_code||'GBP'; CUR.symbol=prof.currency_symbol||'£'; CUR.rate=Number(prof.currency_rate)||1; }
+  fillCurrencyInputs();
   if(!D.items.length){ say('no stockpile rows — ask Adrian to reseed',1); }
   showApp(); render(); say('saved');
   try{ var tb=localStorage.getItem('fox-tab');
@@ -392,6 +415,20 @@ async function boot(){
   $('signout').addEventListener('click',async function(){
     await SB.auth.signOut(); location.reload();
   });
+  if($('cur-select')){
+    $('cur-select').addEventListener('change',function(){
+      var code=$('cur-select').value; CUR.code=code;
+      if(CURR[code]){ CUR.symbol=CURR[code].symbol; CUR.rate=CURR[code].rate; }
+      fillCurrencyInputs(); render(); saveCurrency();
+    });
+    $('cur-symbol').addEventListener('input',function(){
+      CUR.symbol=$('cur-symbol').value||'£'; CUR.code='CUSTOM'; $('cur-select').value='CUSTOM';
+      render(); saveCurrency();
+    });
+    $('cur-rate').addEventListener('input',function(){
+      CUR.rate=n($('cur-rate').value)||1; render(); saveCurrency();
+    });
+  }
   [].forEach.call(document.querySelectorAll('.authtab'),function(b){
     b.addEventListener('click',function(){
       [].forEach.call(document.querySelectorAll('.authtab'),function(x){
