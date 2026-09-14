@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FOX Prep Tracker</title>
+<meta name="description" content="Whiteout Survival SvS prep tracker for FOX — track your own stockpile, targets and pack plan.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧊</text></svg>">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================================================================
+     PASTE YOUR TWO SUPABASE VALUES HERE
+     Supabase dashboard -> Project Settings -> API
+     "Project URL"  and  "anon public" key.  Both are safe in a public
+     page; the database only lets a signed-in person touch their own rows.
+     =================================================================== -->
+<script>
+var CONFIG = {
+  url: "https://nhkyrurfcrorwbobqlrp.supabase.co",
+  key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oa3lydXJmY3Jvcndib2JxbHJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTgzMTksImV4cCI6MjEwNDk3NDMxOX0.EqMDp5n9VuZuq6TNHQ7AfRSZn2Skt6PZ80XKuPe765A"
+};
+</script>
+
+<div class="wrap">
+<header class="top">
+ <div>
+  <div class="kick">Whiteout Survival &middot; State #3685 &middot; FC5-Gen5</div>
+  <h1>FOX Prep Tracker</h1>
+  <p class="sub">Track your own stockpile against target, and see which packs actually close your gap.
+  Your numbers are yours &mdash; nobody else in the alliance can see them.</p>
+ </div>
+ <div class="count" id="countbox" style="visibility:hidden"><span class="lbl">Days to next SvS</span><b id="dcount">&mdash;</b><span class="mini" id="dnext"></span></div>
+</header>
+
+<div id="userbar" style="display:none">Signed in as <b id="who"></b><button id="signout">Sign out</button></div>
+
+<div id="auth" style="display:none">
+ <div class="card">
+  <div class="authtabs">
+   <button class="authtab" data-a="in" aria-selected="true">Sign in</button>
+   <button class="authtab" data-a="up" aria-selected="false">Create account</button>
+  </div>
+  <form id="signin">
+   <div><label for="si-email">Email</label><input id="si-email" type="email" autocomplete="email" required></div>
+   <div><label for="si-pw">Password</label><input id="si-pw" type="password" autocomplete="current-password" required></div>
+   <button type="submit">Sign in</button>
+   <button type="button" id="forgot">Forgot your password?</button>
+  </form>
+  <form id="signup" style="display:none">
+   <div><label for="su-name">In-game name</label><input id="su-name" type="text" autocomplete="nickname" required></div>
+   <div><label for="su-email">Email</label><input id="su-email" type="email" autocomplete="email" required></div>
+   <div><label for="su-pw">Password</label><input id="su-pw" type="password" autocomplete="new-password" required minlength="8"></div>
+   <button type="submit">Create account</button>
+  </form>
+  <p class="authmsg" id="authmsg"></p>
+ </div>
+</div>
+
+<div id="app" style="display:none">
+<div class="stats" id="stats"></div>
+
+<nav class="tabs" role="tablist">
+ <button role="tab" aria-selected="true" data-p="dash">Dashboard</button>
+ <button role="tab" aria-selected="false" data-p="stock">Stockpile</button>
+ <button role="tab" aria-selected="false" data-p="packs">Things to buy</button>
+ <button role="tab" aria-selected="false" data-p="matrix">Pack contents</button>
+ <button role="tab" aria-selected="false" data-p="ref">Reference</button>
+ <span id="sync"></span>
+</nav>
+
+<section class="panel on" id="p-dash">
+ <div class="dgrid">
+  <div class="dcard up"><header><h3>Closest to target</h3><span class="dtag good">winning</span></header>
+   <ol class="dlist" id="d-top"></ol></div>
+  <div class="dcard down"><header><h3>Furthest behind</h3><span class="dtag bad">needs work</span></header>
+   <ol class="dlist" id="d-bot"></ol></div>
+  <div class="dcard"><header><h3>Where the weight sits</h3><span class="dtag">shortfall priced at Torxim baseline</span></header>
+   <ol class="dlist" id="d-gap"></ol></div>
+  <div class="dcard"><header><h3>Best buys right now</h3><span class="dtag">by what they do for your gap</span></header>
+   <ol class="dlist buys" id="d-buy"></ol></div>
+ </div>
+ <p class="hint">Ranked on progress against your own targets, so these move as you update the Stockpile tab.
+ Items with no target set are left out.</p>
+</section>
+
+<section class="panel" id="p-stock">
+ <div class="toolbar">
+  <button class="chip" data-scope="stock" data-f="all" aria-pressed="true" id="c-all">All</button>
+  <button class="chip" data-scope="stock" data-f="behind" id="c-behind">Behind</button>
+  <button class="chip" data-scope="stock" data-f="met">On track</button>
+  <button class="chip" data-scope="stock" data-f="none">No target</button>
+  <input type="search" data-for="stock" placeholder="Find an item…">
+ </div>
+ <p class="hint">Projected = what you hold, plus free income to SvS day, plus everything the packs you have marked
+ will deliver. Status turns green once the projection clears your target.</p>
+ <div class="tw"><table id="stock"><thead><tr><th></th><th>Item</th><th class="num">Have</th>
+ <th class="num">Target</th><th class="num">Remaining</th><th>Progress</th><th class="num">Free / day</th>
+ <th class="num">Projected</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-packs">
+ <div class="toolbar">
+  <button class="chip" data-scope="packs" data-f="all" aria-pressed="true" id="c-pall">All</button>
+  <button class="chip" data-scope="packs" data-f="golden" id="c-gold">Must buy</button>
+  <button class="chip" data-scope="packs" data-f="pack">Worth checking</button>
+  <button class="chip" data-scope="packs" data-f="buying" id="c-buying">Buying</button>
+  <span class="sep"></span>
+  <button class="chip" id="c-section" aria-pressed="true">Grouped by section</button>
+  <input type="search" data-for="<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FOX Prep Tracker</title>
+<meta name="description" content="Whiteout Survival SvS prep tracker for FOX — track your own stockpile, targets and pack plan.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧊</text></svg>">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================================================================
+     PASTE YOUR TWO SUPABASE VALUES HERE
+     Supabase dashboard -> Project Settings -> API
+     "Project URL"  and  "anon public" key.  Both are safe in a public
+     page; the database only lets a signed-in person touch their own rows.
+     =================================================================== -->
+<script>
+var CONFIG = {
+  url: "https://nhkyrurfcrorwbobqlrp.supabase.co",
+  key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oa3lydXJmY3Jvcndib2JxbHJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTgzMTksImV4cCI6MjEwNDk3NDMxOX0.EqMDp5n9VuZuq6TNHQ7AfRSZn2Skt6PZ80XKuPe765A"
+};
+</script>
+
+<div class="wrap">
+<header class="top">
+ <div>
+  <div class="kick">Whiteout Survival &middot; State #3685 &middot; FC5-Gen5</div>
+  <h1>FOX Prep Tracker</h1>
+  <p class="sub">Track your own stockpile against target, and see which packs actually close your gap.
+  Your numbers are yours &mdash; nobody else in the alliance can see them.</p>
+ </div>
+ <div class="count" id="countbox" style="visibility:hidden"><span class="lbl">Days to next SvS</span><b id="dcount">&mdash;</b><span class="mini" id="dnext"></span></div>
+</header>
+
+<div id="userbar" style="display:none">Signed in as <b id="who"></b><button id="signout">Sign out</button></div>
+
+<div id="auth" style="display:none">
+ <div class="card">
+  <div class="authtabs">
+   <button class="authtab" data-a="in" aria-selected="true">Sign in</button>
+   <button class="authtab" data-a="up" aria-selected="false">Create account</button>
+  </div>
+  <form id="signin">
+   <div><label for="si-email">Email</label><input id="si-email" type="email" autocomplete="email" required></div>
+   <div><label for="si-pw">Password</label><input id="si-pw" type="password" autocomplete="current-password" required></div>
+   <button type="submit">Sign in</button>
+   <button type="button" id="forgot">Forgot your password?</button>
+  </form>
+  <form id="signup" style="display:none">
+   <div><label for="su-name">In-game name</label><input id="su-name" type="text" autocomplete="nickname" required></div>
+   <div><label for="su-email">Email</label><input id="su-email" type="email" autocomplete="email" required></div>
+   <div><label for="su-pw">Password</label><input id="su-pw" type="password" autocomplete="new-password" required minlength="8"></div>
+   <button type="submit">Create account</button>
+  </form>
+  <p class="authmsg" id="authmsg"></p>
+ </div>
+</div>
+
+<div id="app" style="display:none">
+<div class="stats" id="stats"></div>
+
+<nav class="tabs" role="tablist">
+ <button role="tab" aria-selected="true" data-p="dash">Dashboard</button>
+ <button role="tab" aria-selected="false" data-p="stock">Stockpile</button>
+ <button role="tab" aria-selected="false" data-p="packs">Things to buy</button>
+ <button role="tab" aria-selected="false" data-p="matrix">Pack contents</button>
+ <button role="tab" aria-selected="false" data-p="ref">Reference</button>
+ <span id="sync"></span>
+</nav>
+
+<section class="panel on" id="p-dash">
+ <div class="dgrid">
+  <div class="dcard up"><header><h3>Closest to target</h3><span class="dtag good">winning</span></header>
+   <ol class="dlist" id="d-top"></ol></div>
+  <div class="dcard down"><header><h3>Furthest behind</h3><span class="dtag bad">needs work</span></header>
+   <ol class="dlist" id="d-bot"></ol></div>
+  <div class="dcard"><header><h3>Where the weight sits</h3><span class="dtag">shortfall priced at Torxim baseline</span></header>
+   <ol class="dlist" id="d-gap"></ol></div>
+  <div class="dcard"><header><h3>Best buys right now</h3><span class="dtag">by what they do for your gap</span></header>
+   <ol class="dlist buys" id="d-buy"></ol></div>
+ </div>
+ <p class="hint">Ranked on progress against your own targets, so these move as you update the Stockpile tab.
+ Items with no target set are left out.</p>
+</section>
+
+<section class="panel" id="p-stock">
+ <div class="toolbar">
+  <button class="chip" data-scope="stock" data-f="all" aria-pressed="true" id="c-all">All</button>
+  <button class="chip" data-scope="stock" data-f="behind" id="c-behind">Behind</button>
+  <button class="chip" data-scope="stock" data-f="met">On track</button>
+  <button class="chip" data-scope="stock" data-f="none">No target</button>
+  <input type="search" data-for="stock" placeholder="Find an item…">
+ </div>
+ <p class="hint">Projected = what you hold, plus free income to SvS day, plus everything the packs you have marked
+ will deliver. Status turns green once the projection clears your target.</p>
+ <div class="tw"><table id="stock"><thead><tr><th></th><th>Item</th><th class="num">Have</th>
+ <th class="num">Target</th><th class="num">Remaining</th><th>Progress</th><th class="num">Free / day</th>
+ <th class="num">Projected</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-packs">
+ <div class="toolbar">
+  <button class="chip" data-scope="packs" data-f="all" aria-pressed="true" id="c-pall">All</button>
+  <button class="chip" data-scope="packs" data-f="golden" id="c-gold">Must buy</button>
+  <button class="chip" data-scope="packs" data-f="pack">Worth checking</button>
+  <button class="chip" data-scope="packs" data-f="buying" id="c-buying">Buying</button>
+  <span class="sep"></span>
+  <button class="chip" id="c-section" aria-pressed="true">Grouped by section</button>
+  <input type="search" data-for="packs" placeholder="Find a pack…">
+ </div>
+ <p class="hint">Click a column heading to sort by it; click again to reverse. Best item is the strongest single thing in the pack that <em>you</em> are still short of, valued
+ against the pack price &mdash; so the verdict changes with your targets. Must buy means both clear the bar
+ (pack &ge;150%, best item &ge;120%). Where a pack's contents cannot be priced, the verdict falls back to its pack
+ value alone. Gems are ignored. Bars are scaled to 300%.</p>
+ <div class="tw"><table id="packs"><thead><tr><th></th>
+ <th class="so" data-sort="name" data-label="Pack">Pack</th>
+ <th class="num so" data-sort="price" data-label="Price &pound;">Price &pound;</th>
+ <th class="num so" data-sort="freq" data-label="Buy / mo">Buy / mo</th>
+ <th>Best item for you</th>
+ <th class="num so" data-sort="pv" data-label="Pack value %">Pack value %</th>
+ <th class="num so" data-sort="iv" data-label="Best item %">Best item %</th>
+ <th class="so" data-sort="verdict" data-label="Verdict">Verdict</th>
+ </tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-matrix">
+ <div class="toolbar"><input type="search" data-for="matrix" placeholder="Find a pack…" style="margin-left:0"></div>
+ <p class="hint">What each pack contains, per Torxim. The top row is what you are still missing against your
+ targets, before free income.</p>
+ <div class="tw"><table id="matrix" class="mx"><thead></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-ref">
+ <div class="setgrid">
+  <div class="card">
+   <h3>Cycle</h3>
+   <div class="frow"><span>Next SvS date</span><b id="svsdate"></b></div>
+   <div class="frow"><span>MUR per &pound;</span><b id="murrate"></b></div>
+  </div>
+  <div class="card" style="grid-column:span 2">
+   <h3>Torxim value per unit ($)</h3>
+   <p class="hint" style="margin:0 0 8px">The baseline behind every pack calculation.</p>
+   <div id="baselines"></div>
+  </div>
+ </div>
+</section>
+
+<footer>
+ <span>Speedups are counted in hours on pack contents and days on the stockpile.</span>
+ <span>Pack values from Torxim's WoS Corner at our state settings (FC5-Gen5, SR 46, RSS 25). Fan-made reference, not affiliated with Century Games.</span>
+</footer>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
+packs" placeholder="Find a pack…"<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FOX Prep Tracker</title>
+<meta name="description" content="Whiteout Survival SvS prep tracker for FOX — track your own stockpile, targets and pack plan.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧊</text></svg>">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================================================================
+     PASTE YOUR TWO SUPABASE VALUES HERE
+     Supabase dashboard -> Project Settings -> API
+     "Project URL"  and  "anon public" key.  Both are safe in a public
+     page; the database only lets a signed-in person touch their own rows.
+     =================================================================== -->
+<script>
+var CONFIG = {
+  url: "https://nhkyrurfcrorwbobqlrp.supabase.co",
+  key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oa3lydXJmY3Jvcndib2JxbHJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTgzMTksImV4cCI6MjEwNDk3NDMxOX0.EqMDp5n9VuZuq6TNHQ7AfRSZn2Skt6PZ80XKuPe765A"
+};
+</script>
+
+<div class="wrap">
+<header class="top">
+ <div>
+  <div class="kick">Whiteout Survival &middot; State #3685 &middot; FC5-Gen5</div>
+  <h1>FOX Prep Tracker</h1>
+  <p class="sub">Track your own stockpile against target, and see which packs actually close your gap.
+  Your numbers are yours &mdash; nobody else in the alliance can see them.</p>
+ </div>
+ <div class="count" id="countbox" style="visibility:hidden"><span class="lbl">Days to next SvS</span><b id="dcount">&mdash;</b><span class="mini" id="dnext"></span></div>
+</header>
+
+<div id="userbar" style="display:none">Signed in as <b id="who"></b><button id="signout">Sign out</button></div>
+
+<div id="auth" style="display:none">
+ <div class="card">
+  <div class="authtabs">
+   <button class="authtab" data-a="in" aria-selected="true">Sign in</button>
+   <button class="authtab" data-a="up" aria-selected="false">Create account</button>
+  </div>
+  <form id="signin">
+   <div><label for="si-email">Email</label><input id="si-email" type="email" autocomplete="email" required></div>
+   <div><label for="si-pw">Password</label><input id="si-pw" type="password" autocomplete="current-password" required></div>
+   <button type="submit">Sign in</button>
+   <button type="button" id="forgot">Forgot your password?</button>
+  </form>
+  <form id="signup" style="display:none">
+   <div><label for="su-name">In-game name</label><input id="su-name" type="text" autocomplete="nickname" required></div>
+   <div><label for="su-email">Email</label><input id="su-email" type="email" autocomplete="email" required></div>
+   <div><label for="su-pw">Password</label><input id="su-pw" type="password" autocomplete="new-password" required minlength="8"></div>
+   <button type="submit">Create account</button>
+  </form>
+  <p class="authmsg" id="authmsg"></p>
+ </div>
+</div>
+
+<div id="app" style="display:none">
+<div class="stats" id="stats"></div>
+
+<nav class="tabs" role="tablist">
+ <button role="tab" aria-selected="true" data-p="dash">Dashboard</button>
+ <button role="tab" aria-selected="false" data-p="stock">Stockpile</button>
+ <button role="tab" aria-selected="false" data-p="packs">Things to buy</button>
+ <button role="tab" aria-selected="false" data-p="matrix">Pack contents</button>
+ <button role="tab" aria-selected="false" data-p="ref">Reference</button>
+ <span id="sync"></span>
+</nav>
+
+<section class="panel on" id="p-dash">
+ <div class="dgrid">
+  <div class="dcard up"><header><h3>Closest to target</h3><span class="dtag good">winning</span></header>
+   <ol class="dlist" id="d-top"></ol></div>
+  <div class="dcard down"><header><h3>Furthest behind</h3><span class="dtag bad">needs work</span></header>
+   <ol class="dlist" id="d-bot"></ol></div>
+  <div class="dcard"><header><h3>Where the weight sits</h3><span class="dtag">shortfall priced at Torxim baseline</span></header>
+   <ol class="dlist" id="d-gap"></ol></div>
+  <div class="dcard"><header><h3>Best buys right now</h3><span class="dtag">by what they do for your gap</span></header>
+   <ol class="dlist buys" id="d-buy"></ol></div>
+ </div>
+ <p class="hint">Ranked on progress against your own targets, so these move as you update the Stockpile tab.
+ Items with no target set are left out.</p>
+</section>
+
+<section class="panel" id="p-stock">
+ <div class="toolbar">
+  <button class="chip" data-scope="stock" data-f="all" aria-pressed="true" id="c-all">All</button>
+  <button class="chip" data-scope="stock" data-f="behind" id="c-behind">Behind</button>
+  <button class="chip" data-scope="stock" data-f="met">On track</button>
+  <button class="chip" data-scope="stock" data-f="none">No target</button>
+  <input type="search" data-for="stock" placeholder="Find an item…">
+ </div>
+ <p class="hint">Projected = what you hold, plus free income to SvS day, plus everything the packs you have marked
+ will deliver. Status turns green once the projection clears your target.</p>
+ <div class="tw"><table id="stock"><thead><tr><th></th><th>Item</th><th class="num">Have</th>
+ <th class="num">Target</th><th class="num">Remaining</th><th>Progress</th><th class="num">Free / day</th>
+ <th class="num">Projected</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-packs">
+ <div class="toolbar">
+  <button class="chip" data-scope="packs" data-f="all" aria-pressed="true" id="c-pall">All</button>
+  <button class="chip" data-scope="packs" data-f="golden" id="c-gold">Must buy</button>
+  <button class="chip" data-scope="packs" data-f="pack">Worth checking</button>
+  <button class="chip" data-scope="packs" data-f="buying" id="c-buying">Buying</button>
+  <span class="sep"></span>
+  <button class="chip" id="c-section" aria-pressed="true">Grouped by section</button>
+  <input type="search" data-for="packs" placeholder="Find a pack…">
+ </div>
+ <p class="hint">Click a column heading to sort by it; click again to reverse. Best item is the strongest single thing in the pack that <em>you</em> are still short of, valued
+ against the pack price &mdash; so the verdict changes with your targets. Must buy means both clear the bar
+ (pack &ge;150%, best item &ge;120%). Where a pack's contents cannot be priced, the verdict falls back to its pack
+ value alone. Gems are ignored. Bars are scaled to 300%.</p>
+ <div class="tw"><table id="packs"><thead><tr><th></th>
+ <th class="so" data-sort="name" data-label="Pack">Pack</th>
+ <th class="num so" data-sort="price" data-label="Price &pound;">Price &pound;</th>
+ <th class="num so" data-sort="freq" data-label="Buy / mo">Buy / mo</th>
+ <th>Best item for you</th>
+ <th class="num so" data-sort="pv" data-label="Pack value %">Pack value %</th>
+ <th class="num so" data-sort="iv" data-label="Best item %">Best item %</th>
+ <th class="so" data-sort="verdict" data-label="Verdict">Verdict</th>
+ </tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-matrix">
+ <div class="toolbar"><input type="search" data-for="matrix" placeholder="Find a pack…" style="margin-left:0"></div>
+ <p class="hint">What each pack contains, per Torxim. The top row is what you are still missing against your
+ targets, before free income.</p>
+ <div class="tw"><table id="matrix" class="mx"><thead></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-ref">
+ <div class="setgrid">
+  <div class="card">
+   <h3>Cycle</h3>
+   <div class="frow"><span>Next SvS date</span><b id="svsdate"></b></div>
+   <div class="frow"><span>MUR per &pound;</span><b id="murrate"></b></div>
+  </div>
+  <div class="card" style="grid-column:span 2">
+   <h3>Torxim value per unit ($)</h3>
+   <p class="hint" style="margin:0 0 8px">The baseline behind every pack calculation.</p>
+   <div id="baselines"></div>
+  </div>
+ </div>
+</section>
+
+<footer>
+ <span>Speedups are counted in hours on pack contents and days on the stockpile.</span>
+ <span>Pack values from Torxim's WoS Corner at our state settings (FC5-Gen5, SR 46, RSS 25). Fan-made reference, not affiliated with Century Games.</span>
+</footer>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
+>
+ </div>
+ <p class="hint">Click a column heading to sort by it; click again to reverse. Best item is the strongest single thing in the pack that <em>you</em> are still short of, valued
+ against the pack price &mdash; so the verdict changes with your targets. Must buy means both clear the bar
+ (pack &ge;150%, best item &ge;120%). Where a pack's contents cannot be priced, the verdict falls back to its pack
+ value alone. Gems are ignored. Bars are scaled to 300%.</p>
+ <div class="tw"><table id="packs"><thead><tr><th></th>
+ <th class="so" data-sort="name" data-label="Pack">Pack</th>
+ <th class="num so" data-sort="price" data-label="Price &pound;">Price &pound;</th>
+ <th class="num so" data-sort="freq" data-label="Buy / mo">Buy / mo</th>
+ <th>Best item for you</th>
+ <th class="num so" data-sort="pv" data-label="Pack value %">Pack value %</th>
+ <th class="num so" data-sort="iv" data-label="Best item %">Best item %</th>
+ <th class="so" data-sort="verdict" data-label="Verdict">Verdict</th>
+ </tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-matrix">
+ <div class="toolbar"><input type="search" data-for="matrix" placeholder="Find a pack…" style="margin-left:0"></div>
+ <p class="hint">What each pack contains, per Torxim. The top row is what you are still missing against your
+ targets, before free income.</p>
+ <div class="tw"><table id="matrix" class="mx"><thead></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" id="p-ref">
+ <div class="setgrid">
+  <div class="card">
+   <h3>Cycle</h3>
+   <div class="frow"><span>Next SvS date</span><b id="svsdate"></b></div>
+   <div class="frow"><span>MUR per &pound;</span><b id="murrate"></b></div>
+  </div>
+  <div class="card" style="grid-column:span 2">
+   <h3>Torxim value per unit ($)</h3>
+   <p class="hint" style="margin:0 0 8px">The baseline behind every pack calculation.</p>
+   <div id="baselines"></div>
+  </div>
+ </div>
+</section>
+
+<footer>
+ <span>Speedups are counted in hours on pack contents and days on the stockpile.</span>
+ <span>Pack values from Torxim's WoS Corner at our state settings (FC5-Gen5, SR 46, RSS 25). Fan-made reference, not affiliated with Century Games.</span>
+</footer>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
