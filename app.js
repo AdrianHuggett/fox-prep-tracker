@@ -1,0 +1,406 @@
+/* FOX Prep Tracker — front end */
+(function(){
+'use strict';
+var SB=null, U=null, D={items:[],packs:[],contents:{},base:{},settings:{}}, uPacks={};
+var timers={}, sync=document.getElementById('sync');
+var sortMode='section', sortDir=-1;
+
+function say(t,warn){ if(sync){ sync.textContent=t||''; sync.className=warn?'warn':''; } }
+window.onerror=function(m){ say('error: '+String(m).slice(0,60),1); };
+function n(v){ v=parseFloat(v); return isFinite(v)?v:0; }
+function fmt(v,dp){ if(v===null||v===undefined||v==='') return '—';
+  dp=dp||0; if(dp===0&&Math.abs(v-Math.round(v))>1e-9) dp=1;
+  return Number(v).toLocaleString('en-GB',{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function $(id){ return document.getElementById(id); }
+
+/* ---------- maths ---------- */
+function days(){
+  var s=D.settings.next_svs; if(!s) return 30;
+  var d=new Date(s+'T00:00:00'); if(isNaN(d)) return 30;
+  var t=new Date(); t.setHours(0,0,0,0);
+  return Math.max(0,Math.round((d-t)/86400000));
+}
+function months(){ return days()/30; }
+function calcItem(it){
+  var have=n(it.have), tgt=n(it.target), g=n(it.free)*days(), m=months();
+  D.packs.forEach(function(p){
+    var f=n(uPacks[p.id]); if(!f) return;
+    var c=D.contents[p.id]; if(!c||!c[it.name]) return;
+    g+=f*n(c[it.name])*m;
+  });
+  var proj=have+g;
+  return {have:have,tgt:tgt,proj:proj,pct:tgt>0?have/tgt:null,
+          raw:tgt>0?Math.max(tgt-have,0):0, left:tgt>0?Math.max(tgt-proj,0):0,
+          ok:tgt>0?(proj>=tgt):null};
+}
+function itemMap(){ var m={}; D.items.forEach(function(i){m[i.name]=i;}); return m; }
+function calcPack(p,byName){
+  var price=Math.max(n(p.price),0.01), best=null, bv=0, c=D.contents[p.id]||{};
+  var scoreable=false;
+  Object.keys(c).forEach(function(k){
+    if(k==='Gems') return;
+    var it=byName[k]; if(!it) return;
+    var b=n(D.base[k]); if(!b) return;
+    scoreable=true;
+    if(calcItem(it).raw<=0) return;
+    var v=n(c[k])*b/price; if(v>bv){ bv=v; best=k; }
+  });
+  var pv=n(p.pack_value), iv=bv*100, verdict;
+  if(!scoreable){
+    if(pv>=150) verdict='Must buy';
+    else if(pv>=100) verdict='Worth checking';
+    else if(pv>0) verdict='Last resort';
+    else verdict='—';
+  }
+  else if(iv<=0) verdict='—';
+  else if(pv>=150&&iv>=120) verdict='Must buy';
+  else if(iv>=120) verdict='Item buy';
+  else if(pv>=150) verdict='Worth checking';
+  else verdict='Last resort';
+  return {best:best,iv:iv,pv:pv,verdict:verdict,scoreable:scoreable};
+}
+function budget(){ var t=0; D.packs.forEach(function(p){ t+=n(p.price)*n(uPacks[p.id]); }); return t; }
+function pcolor(p){ if(p===null) return 'var(--faint)';
+  if(p>=1) return 'var(--good)'; if(p>=.75) return 'var(--ice)';
+  if(p>=.5) return '#C79A16'; return 'var(--ember)'; }
+
+/* ---------- saving ---------- */
+function queue(key,fn){
+  clearTimeout(timers[key]); say('saving…');
+  timers[key]=setTimeout(function(){
+    fn().then(function(r){
+      if(r&&r.error){ say('could not save: '+r.error.message,1); }
+      else say('saved');
+    }).catch(function(e){ say('could not save: '+(e.message||e),1); });
+  },500);
+}
+function saveItem(it,field){
+  var patch={}; patch[field]=n(it[field]);
+  queue('i'+it.sort+field,function(){
+    return SB.from('user_items').update(patch).eq('sort',it.sort).eq('user_id',U.id);
+  });
+}
+function savePack(id,freq){
+  queue('p'+id,function(){
+    return SB.from('user_packs').update({freq:n(freq)}).eq('pack_id',id).eq('user_id',U.id);
+  });
+}
+
+/* ---------- rendering ---------- */
+function inp(val,cls,attrs){
+  return '<input class="cell '+(cls||'')+'" type="number" step="any" value="'+
+    (val===null||val===undefined?'':val)+'" '+(attrs||'')+'>';
+}
+function renderStock(){
+  var out=[], g=null;
+  D.items.forEach(function(it,idx){
+    if(it.grp!==g){ g=it.grp; out.push('<tr class="grp"><td colspan="9">'+esc(g)+'</td></tr>'); }
+    var c=calcItem(it);
+    var st=c.tgt<=0?'none':(c.ok?'met':'behind');
+    var pill=c.tgt<=0?'<span class="pill p-na">no target</span>'
+      :(c.ok?'<span class="pill p-yes">on track</span>':'<span class="pill p-no">behind</span>');
+    var w=c.pct===null?0:Math.max(0,Math.min(100,c.pct*100));
+    var rc=c.tgt<=0?'':(c.ok?'on track':(c.left>0?fmt(c.left)+' short after plan':''));
+    out.push('<tr data-state="'+st+'" data-q="'+esc(it.name.toLowerCase())+'">'+
+      '<td class="ic">'+esc(it.icon||'·')+'</td><td class="nm">'+esc(it.name)+'</td>'+
+      '<td>'+inp(it.have,'','data-idx="'+idx+'" data-k="have"')+'</td>'+
+      '<td>'+inp(it.target,'t2','data-idx="'+idx+'" data-k="target"')+'</td>'+
+      '<td class="num">'+(c.tgt>0?fmt(c.raw):'<span class="mini">—</span>')+'</td>'+
+      '<td><div class="prog"><div class="pbar"><i style="width:'+w.toFixed(1)+'%;background:'+pcolor(c.pct)+'"></i></div>'+
+        '<span>'+(c.pct===null?'—':Math.round(c.pct*100)+'%')+'</span></div></td>'+
+      '<td class="num">'+(n(it.free)?fmt(n(it.free),2):'<span class="mini">—</span>')+'</td>'+
+      '<td class="num">'+fmt(c.proj)+'</td>'+
+      '<td>'+pill+'<div class="rc">'+esc(rc)+'</div></td></tr>');
+  });
+  $('stock').querySelector('tbody').innerHTML=out.join('');
+}
+function packRank(v){ return {'Must buy':4,'Item buy':3,'Worth checking':2,'Last resort':1,'—':0}[v]||0; }
+function renderPacks(){
+  var byName=itemMap(), out=[], sec=null, grp=null;
+  var VP={'Must buy':'p-gold','Item buy':'p-item','Worth checking':'p-pack','Last resort':'p-low','—':'p-na'};
+  var list=D.packs.map(function(p,i){ return {p:p,i:i,c:calcPack(p,byName)}; });
+  if(sortMode!=='section'){
+    var key=function(o){
+      switch(sortMode){
+        case 'name':    return o.p.name.toLowerCase();
+        case 'price':   return n(o.p.price);
+        case 'freq':    return n(uPacks[o.p.id]);
+        case 'pv':      return n(o.c.pv);
+        case 'iv':      return n(o.c.iv);
+        case 'verdict': return packRank(o.c.verdict);
+      }
+      return 0; };
+    list.sort(function(a,b){ var x=key(a),y=key(b);
+      if(x<y) return -sortDir; if(x>y) return sortDir; return a.i-b.i; });
+  }
+  list.forEach(function(o){
+    var p=o.p, c=o.c;
+    if(sortMode==='section'){
+      if(p.sec!==sec){ sec=p.sec; grp=null; out.push('<tr class="sec"><td colspan="8">'+esc(sec)+'</td></tr>'); }
+      if(p.grp!==grp){ grp=p.grp; out.push('<tr class="grp"><td colspan="8">'+esc(grp)+'</td></tr>'); }
+    }
+    function vb(v,col){ if(!(v>0)) return '<span class="mini">—</span>';
+      return '<span class="vbar"><i style="width:'+Math.min(100,v/300*100).toFixed(0)+'%;background:'+col+'"></i></span>'+
+             '<span class="mono">'+Math.round(v)+'%</span>'; }
+    var k=c.verdict==='Must buy'?'golden':(c.verdict==='Item buy'?'item':(c.verdict==='Worth checking'?'pack':'low'));
+    if(n(uPacks[p.id])>0) k+=' buying';
+    out.push('<tr data-state="'+k+'" data-q="'+esc(p.name.toLowerCase())+'">'+
+      '<td class="ic">'+esc(p.icon||'·')+'</td>'+
+      '<td class="nm">'+esc(p.name)+'<div class="mini">'+
+        esc(sortMode==='section'?(p.occurrence||''):((p.grp||'')+(p.occurrence?' · '+p.occurrence:'')))+'</div></td>'+
+      '<td class="num">'+fmt(n(p.price),2)+'</td>'+
+      '<td>'+inp(uPacks[p.id]||0,'t2','data-pid="'+p.id+'"')+'</td>'+
+      '<td>'+(c.best?esc(c.best):'<span class="mini">'+(c.scoreable?'—':'contents not priced')+'</span>')+'</td>'+
+      '<td class="num">'+vb(c.pv,'var(--ice)')+'</td>'+
+      '<td class="num">'+vb(c.iv,'var(--ember)')+'</td>'+
+      '<td><span class="pill '+VP[c.verdict]+'">'+esc(c.verdict)+'</span></td></tr>');
+  });
+  $('packs').querySelector('tbody').innerHTML=out.join('');
+  [].forEach.call(document.querySelectorAll('#packs thead th[data-sort]'),function(th){
+    var on=th.getAttribute('data-sort')===sortMode;
+    th.setAttribute('aria-sort', on?(sortDir===1?'ascending':'descending'):'none');
+    th.innerHTML=th.getAttribute('data-label')+(on?'<i class="arr">'+(sortDir===1?'▲':'▼')+'</i>':'<i class="arr"></i>');
+  });
+  var b=$('c-section');
+  if(b){ var sorted=sortMode!=='section';
+    b.setAttribute('aria-pressed',String(!sorted)); b.classList.toggle('act',sorted);
+    b.textContent = sorted ? '✕ Reset sort' : 'Grouped by section'; }
+}
+function renderMatrix(){
+  var byName=itemMap();
+  var cols=D.items.filter(function(i){ return D.base[i.name]!==undefined; }).map(function(i){ return i.name; });
+  $('matrix').querySelector('thead').innerHTML='<tr><th>Pack</th>'+
+    cols.map(function(c){ return '<th class="num">'+esc(c)+'</th>'; }).join('')+'</tr>';
+  var out=['<tr class="need"><td>Still short</td>'+cols.map(function(c){
+    var it=byName[c], r=it?calcItem(it).raw:0;
+    return '<td class="num">'+(r?fmt(r):'<span class="mini">0</span>')+'</td>'; }).join('')+'</tr>'];
+  D.packs.forEach(function(p){
+    var c=D.contents[p.id]||{};
+    out.push('<tr data-q="'+esc(p.name.toLowerCase())+'"><td>'+esc(p.name)+
+      ' <span class="mini">£'+fmt(n(p.price),2)+'</span></td>'+
+      cols.map(function(col){
+        return '<td class="num">'+(c[col]===undefined?'<span class="mini">·</span>':fmt(n(c[col])))+'</td>';
+      }).join('')+'</tr>');
+  });
+  $('matrix').querySelector('tbody').innerHTML=out.join('');
+}
+function renderRef(){
+  var keys=Object.keys(D.base).sort();
+  $('baselines').innerHTML=keys.map(function(k){
+    return '<div class="frow"><span>'+esc(k)+'</span><b class="mono">'+D.base[k]+'</b></div>'; }).join('');
+  $('svsdate').textContent=D.settings.next_svs||'—';
+  $('murrate').textContent=D.settings.mur||63.4;
+}
+function renderTop(){
+  var withT=0,met=0,sum=0,behind=0;
+  D.items.forEach(function(it){ var c=calcItem(it);
+    if(c.tgt>0){ withT++; sum+=Math.min(c.have/c.tgt,1); if(c.have>=c.tgt) met++; if(!c.ok) behind++; } });
+  var byName=itemMap(), gold=0, marked=0;
+  D.packs.forEach(function(p){ if(n(uPacks[p.id])>0) marked++;
+    if(calcPack(p,byName).verdict==='Must buy') gold++; });
+  var avg=withT?sum/withT:0, bud=budget();
+  $('dcount').textContent=days(); $('dnext').textContent=D.settings.next_svs||'';
+  $('stats').innerHTML=
+    '<div class="stat"><span class="lbl">Targets met</span><b>'+met+' / '+withT+'</b>'+
+    '<small>'+behind+' behind after plan</small><div class="bar"><i style="width:'+
+      (withT?met/withT*100:0).toFixed(0)+'%;background:var(--good)"></i></div></div>'+
+    '<div class="stat"><span class="lbl">Average progress</span><b>'+Math.round(avg*100)+'%</b>'+
+    '<small>across '+withT+' targets</small><div class="bar"><i style="width:'+(avg*100).toFixed(0)+'%"></i></div></div>'+
+    '<div class="stat"><span class="lbl">Monthly spend</span><b>£'+fmt(bud,2)+'</b>'+
+    '<small>≈ MUR '+fmt(bud*n(D.settings.mur||63.4))+'</small></div>'+
+    '<div class="stat"><span class="lbl">Packs marked</span><b>'+marked+'</b>'+
+    '<small>of '+D.packs.length+' · '+gold+' must buy</small></div>';
+  $('c-all').textContent='All '+D.items.length;
+  $('c-behind').textContent='Behind ('+behind+')';
+  $('c-pall').textContent='All '+D.packs.length;
+  $('c-gold').textContent='Must buy ('+gold+')';
+  $('c-buying').textContent='Buying ('+marked+')';
+}
+function dbar(pct,col){
+  return '<div class="dbar"><i style="width:'+Math.max(1.5,Math.min(100,pct)).toFixed(1)+'%;background:'+col+'"></i></div>'; }
+function dashRow(rank,it,c,tone,right,sub){
+  return '<li class="drow '+tone+'"><span class="rank">'+rank+'</span>'+
+    '<span class="dic">'+esc(it.icon||'·')+'</span>'+
+    '<span class="dname">'+esc(it.name)+'<em>'+esc(sub)+'</em></span>'+
+    '<span class="dbarwrap">'+dbar(c.pct===null?0:c.pct*100, tone==='up'?'var(--good)':'var(--ember)')+'</span>'+
+    '<b class="dval">'+right+'</b></li>'; }
+function renderDash(){
+  var withT=D.items.map(function(it){ return {it:it,c:calcItem(it)}; }).filter(function(o){ return o.c.tgt>0; });
+  var byPct=withT.slice().sort(function(a,b){ return b.c.pct-a.c.pct; });
+  $('d-top').innerHTML=byPct.slice(0,5).map(function(o,i){
+    return dashRow(i+1,o.it,o.c,'up',Math.round(o.c.pct*100)+'%',o.c.raw>0?(fmt(o.c.raw)+' to go'):'target met'); }).join('')
+    || '<li class="dempty">No targets set yet.</li>';
+  $('d-bot').innerHTML=byPct.slice().reverse().slice(0,5).map(function(o,i){
+    return dashRow(i+1,o.it,o.c,'down',Math.round(o.c.pct*100)+'%',fmt(o.c.raw)+' short'); }).join('')
+    || '<li class="dempty">No targets set yet.</li>';
+  var gaps=withT.filter(function(o){ return o.c.raw>0 && D.base[o.it.name]; })
+    .map(function(o){ return {it:o.it,c:o.c,usd:o.c.raw*n(D.base[o.it.name])}; })
+    .sort(function(a,b){ return b.usd-a.usd; }).slice(0,5);
+  var mx=gaps.length?gaps[0].usd:1;
+  $('d-gap').innerHTML=gaps.map(function(o,i){
+    return '<li class="drow down"><span class="rank">'+(i+1)+'</span>'+
+      '<span class="dic">'+esc(o.it.icon||'·')+'</span>'+
+      '<span class="dname">'+esc(o.it.name)+'<em>'+fmt(o.c.raw)+' short</em></span>'+
+      '<span class="dbarwrap">'+dbar(o.usd/mx*100,'var(--violet)')+'</span>'+
+      '<b class="dval">$'+fmt(o.usd)+'</b></li>'; }).join('')
+    || '<li class="dempty">Nothing outstanding.</li>';
+  var byName=itemMap();
+  var buys=D.packs.map(function(p){ return {p:p,c:calcPack(p,byName)}; })
+    .filter(function(o){ return o.c.iv>0; }).sort(function(a,b){ return b.c.iv-a.c.iv; }).slice(0,5);
+  $('d-buy').innerHTML=buys.map(function(o,i){
+    var tone=o.c.verdict==='Must buy'?'p-gold':(o.c.verdict==='Item buy'?'p-item':'p-pack');
+    return '<li class="drow"><span class="rank">'+(i+1)+'</span>'+
+      '<span class="dname">'+esc(o.p.name)+'<em>'+esc(o.c.best||'')+' · £'+fmt(n(o.p.price),2)+'</em></span>'+
+      '<span class="dbarwrap">'+dbar(Math.min(100,o.c.iv/300*100),'var(--ember)')+'</span>'+
+      '<b class="dval">'+Math.round(o.c.iv)+'%</b>'+
+      '<span class="pill '+tone+'">'+esc(o.c.verdict)+'</span></li>'; }).join('')
+    || '<li class="dempty">Nothing scores yet — set some targets.</li>';
+}
+function focusKey(el){ if(!el||!el.dataset) return null;
+  return [el.dataset.idx,el.dataset.pid,el.dataset.k].join('|'); }
+function render(){
+  var key=focusKey(document.activeElement);
+  renderTop(); renderDash(); renderStock(); renderPacks(); renderMatrix(); renderRef(); applyFilters(); bind();
+  if(key){ var a=document.querySelectorAll('input.cell');
+    for(var i=0;i<a.length;i++) if(focusKey(a[i])===key){ a[i].focus(); break; } }
+}
+function bind(){
+  [].forEach.call(document.querySelectorAll('input.cell'),function(el){
+    if(el.__b) return; el.__b=1;
+    function commit(){
+      try{
+        if(el.dataset.idx!==undefined){
+          var it=D.items[+el.dataset.idx]; it[el.dataset.k]=n(el.value); saveItem(it,el.dataset.k);
+        } else if(el.dataset.pid!==undefined){
+          uPacks[el.dataset.pid]=n(el.value); savePack(el.dataset.pid,el.value);
+        }
+      }catch(e){ say('edit failed: '+(e.message||e),1); }
+    }
+    el.addEventListener('input',commit);
+    el.addEventListener('blur',commit);
+    el.addEventListener('change',function(){ commit(); render(); });
+  });
+}
+
+/* ---------- filters / tabs ---------- */
+var filters={stock:'all',packs:'all'}, queries={stock:'',packs:'',matrix:''};
+function applyFilters(){
+  ['stock','packs','matrix'].forEach(function(id){
+    var t=$(id); if(!t) return;
+    var f=filters[id]||'all', q=(queries[id]||'').trim().toLowerCase();
+    [].forEach.call(t.querySelectorAll('tbody tr'),function(r){
+      if(r.classList.contains('grp')||r.classList.contains('sec')||r.classList.contains('need')){
+        r.classList.toggle('hide', !!q || f!=='all'); return; }
+      var st=r.dataset.state||'';
+      var okF = f==='all' || st.split(' ').indexOf(f)>=0;
+      var okQ = !q || (r.dataset.q||'').indexOf(q)>=0;
+      r.classList.toggle('hide', !(okF&&okQ));
+    });
+  });
+}
+document.addEventListener('input',function(e){
+  if(e.target.matches&&e.target.matches('input[type=search]')){
+    queries[e.target.dataset.for]=e.target.value; applyFilters(); } });
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.matches('nav.tabs button[data-p]')){
+    [].forEach.call(document.querySelectorAll('nav.tabs button[data-p]'),function(b){
+      b.setAttribute('aria-selected',String(b===t)); });
+    [].forEach.call(document.querySelectorAll('.panel'),function(p){
+      p.classList.toggle('on',p.id==='p-'+t.dataset.p); });
+    try{ localStorage.setItem('fox-tab',t.dataset.p); }catch(err){}
+    return; }
+  var th=t.closest&&t.closest('#packs thead th[data-sort]');
+  if(th){ var m=th.getAttribute('data-sort');
+    if(sortMode===m){ var first=(m==='name')?1:-1;
+      if(sortDir===first){ sortDir=-first; } else { sortMode='section'; sortDir=-1; } }
+    else { sortMode=m; sortDir=(m==='name')?1:-1; }
+    renderPacks(); applyFilters(); bind(); return; }
+  if(t.id==='c-section'){ sortMode='section'; sortDir=-1; renderPacks(); applyFilters(); bind(); return; }
+  if(t.matches('.chip[data-f]')){
+    filters[t.dataset.scope]=t.dataset.f;
+    [].forEach.call(document.querySelectorAll('.chip[data-scope="'+t.dataset.scope+'"]'),function(c){
+      c.setAttribute('aria-pressed',String(c===t)); });
+    applyFilters(); return; }
+});
+
+/* ---------- auth ---------- */
+function authMsg(t,ok){ var e=$('authmsg'); e.textContent=t||''; e.className='authmsg'+(ok?' ok':''); }
+function showAuth(){ $('auth').style.display=''; $('app').style.display='none'; $('userbar').style.display='none'; }
+function showApp(){ $('auth').style.display='none'; $('app').style.display=''; $('userbar').style.display='';
+  var cb=$('countbox'); if(cb) cb.style.visibility='visible'; }
+
+async function loadAll(){
+  say('loading…');
+  var r = await Promise.all([
+    SB.from('settings').select('*').single(),
+    SB.from('baselines').select('*'),
+    SB.from('packs').select('*').order('sort'),
+    SB.from('pack_contents').select('*'),
+    SB.from('user_items').select('*').order('sort'),
+    SB.from('user_packs').select('*')
+  ]);
+  var err=r.find(function(x){ return x.error; });
+  if(err){ say('could not load: '+err.error.message,1); return; }
+  D.settings=r[0].data||{};
+  D.base={}; r[1].data.forEach(function(b){ D.base[b.item]=Number(b.usd); });
+  D.packs=r[2].data;
+  D.contents={}; r[3].data.forEach(function(c){ (D.contents[c.pack_id]=D.contents[c.pack_id]||{})[c.item]=Number(c.qty); });
+  D.items=r[4].data.map(function(i){ return {sort:i.sort,grp:i.grp,icon:i.icon,name:i.name,
+    have:Number(i.have),target:Number(i.target),free:Number(i.free)}; });
+  uPacks={}; r[5].data.forEach(function(p){ uPacks[p.pack_id]=Number(p.freq); });
+  if(!D.items.length){ say('no stockpile rows — ask Adrian to reseed',1); }
+  showApp(); render(); say('saved');
+  try{ var tb=localStorage.getItem('fox-tab');
+    if(tb){ var b=document.querySelector('nav.tabs button[data-p="'+tb+'"]'); if(b) b.click(); } }catch(e){}
+}
+
+async function boot(){
+  if(!window.CONFIG||!CONFIG.url||CONFIG.url.indexOf('YOUR-')===0){
+    $('auth').innerHTML='<div class="card"><h3>Not configured yet</h3>'+
+      '<p class="hint">Add your Supabase project URL and anon key at the top of index.html.</p></div>';
+    return; }
+  SB=window.supabase.createClient(CONFIG.url,CONFIG.key);
+  var s=await SB.auth.getSession();
+  if(s.data.session){ U=s.data.session.user; $('who').textContent=U.email; await loadAll(); }
+  else showAuth();
+
+  $('signin').addEventListener('submit',async function(e){
+    e.preventDefault(); authMsg('Signing in…');
+    var r=await SB.auth.signInWithPassword({email:$('si-email').value.trim(),password:$('si-pw').value});
+    if(r.error) return authMsg(r.error.message);
+    U=r.data.user; $('who').textContent=U.email; authMsg(''); await loadAll();
+  });
+  $('signup').addEventListener('submit',async function(e){
+    e.preventDefault();
+    if($('su-pw').value.length<8) return authMsg('Password needs at least 8 characters.');
+    authMsg('Creating your account…');
+    var r=await SB.auth.signUp({email:$('su-email').value.trim(),password:$('su-pw').value,
+      options:{data:{name:$('su-name').value.trim()}}});
+    if(r.error) return authMsg(r.error.message);
+    if(r.data.session){ U=r.data.user; $('who').textContent=U.email; authMsg(''); await loadAll(); }
+    else authMsg('Check your email to confirm the account, then sign in.',1);
+  });
+  $('forgot').addEventListener('click',async function(){
+    var em=$('si-email').value.trim();
+    if(!em) return authMsg('Type your email above first.');
+    var r=await SB.auth.resetPasswordForEmail(em,{redirectTo:location.href});
+    authMsg(r.error?r.error.message:'Reset link sent to '+em,!r.error);
+  });
+  $('signout').addEventListener('click',async function(){
+    await SB.auth.signOut(); location.reload();
+  });
+  [].forEach.call(document.querySelectorAll('.authtab'),function(b){
+    b.addEventListener('click',function(){
+      [].forEach.call(document.querySelectorAll('.authtab'),function(x){
+        x.setAttribute('aria-selected',String(x===b)); });
+      $('signin').style.display = b.dataset.a==='in'?'':'none';
+      $('signup').style.display = b.dataset.a==='up'?'':'none';
+      authMsg('');
+    });
+  });
+}
+boot();
+})();
