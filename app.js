@@ -374,7 +374,7 @@ async function loadAll(){
   var prof=r[6]&&r[6].data;
   if(prof){ CUR.code=prof.currency_code||'GBP'; CUR.symbol=prof.currency_symbol||'£'; CUR.rate=Number(prof.currency_rate)||1; }
   fillCurrencyInputs();
-  if(!D.items.length){ say('no stockpile rows — ask Adrian to reseed',1); }
+  if(!D.items.length){ say('no backpack rows — ask Adrian to reseed',1); }
   showApp(); render(); say('saved');
   try{ var tb=localStorage.getItem('fox-tab');
     if(tb){ var b=document.querySelector('nav.tabs button[data-p="'+tb+'"]'); if(b) b.click(); } }catch(e){}
