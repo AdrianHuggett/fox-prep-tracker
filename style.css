@@ -121,6 +121,8 @@ input.cell[type=number]{-moz-appearance:textfield}
 .frow input{width:130px}
 input.wide{font:inherit;font-size:13px;background:var(--edit);color:var(--ink);border:1px solid var(--edit-b);
  border-radius:5px;padding:4px 8px}
+select.wide{font:inherit;font-size:13px;background:var(--edit);color:var(--ink);border:1px solid var(--edit-b);
+ border-radius:5px;padding:4px 8px;width:170px}
 .empty{padding:50px 20px;text-align:center;color:var(--faint)}
 footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--line);color:var(--faint);font-size:12px;
  display:flex;flex-direction:column;gap:4px}
