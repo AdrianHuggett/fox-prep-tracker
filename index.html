@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FOX Prep Tracker</title>
-<meta name="description" content="Whiteout Survival SvS prep tracker for FOX — track your own stockpile, targets and pack plan.">
+<meta name="description" content="Whiteout Survival SvS prep tracker for FOX — track your own backpack, targets and pack plan.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧊</text></svg>">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -30,7 +30,7 @@ var CONFIG = {
  <div>
   <div class="kick">Whiteout Survival &middot; State #3685 &middot; FC5-Gen5</div>
   <h1>FOX Prep Tracker</h1>
-  <p class="sub">Track your own stockpile against target, and see which packs actually close your gap.
+  <p class="sub">Track your own backpack against target, and see which packs actually close your gap.
   Your numbers are yours &mdash; nobody else in the alliance can see them.</p>
  </div>
  <div class="count" id="countbox" style="visibility:hidden"><span class="lbl">Days to next SvS</span><b id="dcount">&mdash;</b><span class="mini" id="dnext"></span></div>
@@ -65,7 +65,7 @@ var CONFIG = {
 
 <nav class="tabs" role="tablist">
  <button role="tab" aria-selected="true" data-p="dash">Dashboard</button>
- <button role="tab" aria-selected="false" data-p="stock">Stockpile</button>
+ <button role="tab" aria-selected="false" data-p="stock">Backpack</button>
  <button role="tab" aria-selected="false" data-p="packs">Things to buy</button>
  <button role="tab" aria-selected="false" data-p="matrix">Pack contents</button>
  <button role="tab" aria-selected="false" data-p="ref">Reference</button>
@@ -83,7 +83,7 @@ var CONFIG = {
   <div class="dcard"><header><h3>Best buys right now</h3><span class="dtag">by what they do for your gap</span></header>
    <ol class="dlist buys" id="d-buy"></ol></div>
  </div>
- <p class="hint">Ranked on progress against your own targets, so these move as you update the Stockpile tab.
+ <p class="hint">Ranked on progress against your own targets, so these move as you update the Backpack tab.
  Items with no target set are left out.</p>
 </section>
 
@@ -174,7 +174,7 @@ var CONFIG = {
 </section>
 
 <footer>
- <span>Speedups are counted in hours on pack contents and days on the stockpile.</span>
+ <span>Speedups are counted in hours on pack contents and days on the backpack.</span>
  <span>Pack values from Torxim's WoS Corner at our state settings (FC5-Gen5, SR 46, RSS 25). Fan-made reference, not affiliated with Century Games.</span>
 </footer>
 </div>
