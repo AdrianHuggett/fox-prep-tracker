@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FOX Prep Tracker</title>
 <meta name="description" content="Whiteout Survival SvS prep tracker for FOX — track your own backpack, targets and pack plan.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧊</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦊</text></svg>">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Caveat:wght@700&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,16 +27,29 @@ var CONFIG = {
 
 <div class="wrap">
 <header class="top">
- <div>
-  <div class="kick">Whiteout Survival &middot; State #3685 &middot; FC5-Gen5</div>
-  <h1>FOX Prep Tracker</h1>
+ <div class="brand">
+  <div class="logo">🦊</div>
+  <div class="btext">
+   <div class="kick">Whiteout Survival</div>
+   <div class="bsub">State #3685 &middot; FC5-Gen5</div>
+  </div>
+ </div>
+ <div id="userbar" style="display:none">
+  <span class="avatar" id="avatar">?</span>
+  <b id="who"></b>
+  <button id="signout">Sign out</button>
+ </div>
+</header>
+
+<div class="hero">
+ <span class="heroflag">Stronger Together</span>
+ <div class="herocontent">
+  <div class="herokick">Plan smart. Close your gap.</div>
+  <h1><span class="fox">FOX</span> Prep Tracker</h1>
   <p class="sub">Track your own backpack against target, and see which packs actually close your gap.
   Your numbers are yours &mdash; nobody else in the alliance can see them.</p>
  </div>
- <div class="count" id="countbox" style="visibility:hidden"><span class="lbl">Days to next SvS</span><b id="dcount">&mdash;</b><span class="mini" id="dnext"></span></div>
-</header>
-
-<div id="userbar" style="display:none">Signed in as <b id="who"></b><button id="signout">Sign out</button></div>
+</div>
 
 <div id="auth" style="display:none">
  <div class="card">
@@ -74,13 +87,27 @@ var CONFIG = {
 
 <section class="panel on" id="p-dash">
  <div class="dgrid">
-  <div class="dcard up"><header><h3>Closest to target</h3><span class="dtag good">winning</span></header>
+  <div class="dcard up"><header>
+    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg></span>
+    <div class="htext"><h3>Closest to target</h3><p>These are your best progress so far</p></div>
+    <span class="dtag good">Winning</span>
+   </header>
    <ol class="dlist" id="d-top"></ol></div>
-  <div class="dcard down"><header><h3>Furthest behind</h3><span class="dtag bad">needs work</span></header>
+  <div class="dcard down"><header>
+    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
+    <div class="htext"><h3>Furthest behind</h3><p>These still need work</p></div>
+    <span class="dtag bad">Needs work</span>
+   </header>
    <ol class="dlist" id="d-bot"></ol></div>
-  <div class="dcard"><header><h3>Where the weight sits</h3><span class="dtag">shortfall priced at Torxim baseline</span></header>
+  <div class="dcard purple"><header>
+    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>
+    <div class="htext"><h3>Where the weight sits</h3><p>Shortfall priced at Torxim baseline</p></div>
+   </header>
    <ol class="dlist" id="d-gap"></ol></div>
-  <div class="dcard"><header><h3>Best buys right now</h3><span class="dtag">by what they do for your gap</span></header>
+  <div class="dcard orange"><header>
+    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
+    <div class="htext"><h3>Best buys right now</h3><p>By what they do for your gap</p></div>
+   </header>
    <ol class="dlist buys" id="d-buy"></ol></div>
  </div>
  <p class="hint">Ranked on progress against your own targets, so these move as you update the Backpack tab.
@@ -173,6 +200,10 @@ var CONFIG = {
  </div>
 </section>
 
+<div class="footband">
+ <p class="footquote">"A little planning today, a stronger tomorrow."</p>
+ <div class="footsig">Fox Family</div>
+</div>
 <footer>
  <span>Speedups are counted in hours on pack contents and days on the backpack.</span>
  <span>Pack values from Torxim's WoS Corner at our state settings (FC5-Gen5, SR 46, RSS 25). Fan-made reference, not affiliated with Century Games.</span>
