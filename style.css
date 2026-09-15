@@ -1,12 +1,13 @@
 :root{
  --ground:#03121D;--panel:#061626;--surface:#081B29;--dcard:#071523;--sunk:#0A1B2B;
  --line:#12283D;--line2:#0E1E2E;
- --ink:#F5F7FF;--muted:#9AB6D0;--faint:#5A768F;
+ --ink:#F5F7FF;--muted:#9AB6D0;--faint:#7E9AB5;
  --ice:#35C8F5;--ice-dim:#0B2E44;
  --good:#35DEA0;--good-dim:#06341F;
  --coral:#FF5946;--coral-dim:#33121B;
  --violet:#A58BFA;--violet-dim:#211C40;
  --orange:#FF823F;--orange-dim:#2C211C;
+ --ember:#FF823F;
  --gold:#F5A524;--gold-dim:#2C2110;
  --edit:#0C2234;--edit-b:#1D4257;--edit2:#1A1638;--edit2-b:#332856;
  /* ---- artwork slots: swap these three files to change all the imagery ----
@@ -222,7 +223,7 @@ th.num{text-align:right}
 .ic{width:24px;text-align:center;opacity:.9;padding-right:0}
 tr.hide{display:none}
 input.cell{font:inherit;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
- font-size:13px;width:100%;min-width:62px;text-align:right;background:var(--edit);color:var(--ink);
+ font-size:13px;width:100%;min-width:96px;text-align:right;background:var(--edit);color:var(--ink);
  border:1px solid var(--edit-b);border-radius:5px;padding:3px 6px}
 input.cell.t2{background:var(--edit2);border-color:var(--edit2-b)}
 input.cell.txt{text-align:left;font-family:"IBM Plex Sans",sans-serif;min-width:150px}
