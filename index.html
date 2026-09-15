@@ -7,7 +7,7 @@
 <meta name="description" content="Whiteout Survival SvS prep tracker for FOX — track your own backpack, targets and pack plan.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦊</text></svg>">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Caveat:wght@700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Caveat:wght@700&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,31 +25,45 @@ var CONFIG = {
 };
 </script>
 
-<div class="wrap">
 <header class="top">
- <div class="brand">
-  <div class="logo">🦊</div>
-  <div class="btext">
-   <div class="kick">Whiteout Survival</div>
-   <div class="bsub">State #3685 &middot; FC5-Gen5</div>
+ <div class="wrap tin">
+  <div class="brand">
+   <span class="logo" role="img" aria-label="FOX alliance"></span>
+   <span class="btext">
+    <span class="kick">Whiteout Survival</span>
+    <span class="bsub">State #3685 &middot; FC5-Gen5</span>
+   </span>
   </div>
- </div>
- <div id="userbar" style="display:none">
-  <span class="avatar" id="avatar">?</span>
-  <b id="who"></b>
-  <button id="signout">Sign out</button>
+  <nav class="tabs" id="navtabs" role="tablist" style="display:none">
+   <button role="tab" aria-selected="true" data-p="dash">Dashboard</button>
+   <button role="tab" aria-selected="false" data-p="stock">Backpack</button>
+   <button role="tab" aria-selected="false" data-p="packs">Things to buy</button>
+   <button role="tab" aria-selected="false" data-p="matrix">Pack contents</button>
+   <button role="tab" aria-selected="false" data-p="ref">Reference</button>
+  </nav>
+  <div id="userbar" style="display:none">
+   <span id="sync"></span>
+   <span class="avatar" id="avatar">?</span>
+   <b id="who"></b>
+   <button id="signout" title="Sign out" aria-label="Sign out">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+   </button>
+  </div>
  </div>
 </header>
 
-<div class="hero">
- <span class="heroflag">Stronger Together</span>
- <div class="herocontent">
-  <div class="herokick">Plan smart. Close your gap.</div>
-  <h1><span class="fox">FOX</span> Prep Tracker</h1>
-  <p class="sub">Track your own backpack against target, and see which packs actually close your gap.
-  Your numbers are yours &mdash; nobody else in the alliance can see them.</p>
+<section class="hero">
+ <div class="wrap hin">
+  <div class="herotext">
+   <p class="herokick">Plan smart. Close your gap.</p>
+   <h1><span class="fox">FOX</span> Prep Tracker</h1>
+   <p class="sub">Track your own backpack against target, and see which packs actually close
+   your gap. Your numbers are yours &mdash; nobody else in the alliance can see them.</p>
+  </div>
  </div>
-</div>
+</section>
+
+<main class="wrap">
 
 <div id="auth" style="display:none">
  <div class="card">
@@ -74,41 +88,37 @@ var CONFIG = {
 </div>
 
 <div id="app" style="display:none">
-<div class="stats" id="stats"></div>
-
-<nav class="tabs" role="tablist">
- <button role="tab" aria-selected="true" data-p="dash">Dashboard</button>
- <button role="tab" aria-selected="false" data-p="stock">Backpack</button>
- <button role="tab" aria-selected="false" data-p="packs">Things to buy</button>
- <button role="tab" aria-selected="false" data-p="matrix">Pack contents</button>
- <button role="tab" aria-selected="false" data-p="ref">Reference</button>
- <span id="sync"></span>
-</nav>
+<div class="statspanel"><div class="stats" id="stats"></div></div>
 
 <section class="panel on" id="p-dash">
  <div class="dgrid">
+
   <div class="dcard up"><header>
-    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg></span>
+    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><path d="M12 1.4v2.6M12 20v2.6M1.4 12h2.6M20 12h2.6"/></svg></span>
     <div class="htext"><h3>Closest to target</h3><p>These are your best progress so far</p></div>
     <span class="dtag good">Winning</span>
    </header>
    <ol class="dlist" id="d-top"></ol></div>
+
   <div class="dcard down"><header>
-    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
+    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4.4 20.4V13"/><path d="M12 20.4V4.2"/><path d="M19.6 20.4v-9.8"/></svg></span>
     <div class="htext"><h3>Furthest behind</h3><p>These still need work</p></div>
     <span class="dtag bad">Needs work</span>
    </header>
    <ol class="dlist" id="d-bot"></ol></div>
+
   <div class="dcard purple"><header>
-    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>
+    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2v17"/><path d="M7 20.2h10"/><path d="M4 6.6h16"/><path d="M4 6.6 1.6 13h4.8L4 6.6Z"/><path d="M20 6.6 17.6 13h4.8L20 6.6Z"/><path d="M1.6 13a2.4 2.4 0 0 0 4.8 0M17.6 13a2.4 2.4 0 0 0 4.8 0"/></svg></span>
     <div class="htext"><h3>Where the weight sits</h3><p>Shortfall priced at Torxim baseline</p></div>
    </header>
    <ol class="dlist" id="d-gap"></ol></div>
+
   <div class="dcard orange"><header>
-    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
+    <span class="hicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.4" cy="20.4" r="1.5"/><circle cx="18.6" cy="20.4" r="1.5"/><path d="M1.6 2.4h3.3l2.5 12.1a1.8 1.8 0 0 0 1.8 1.4h9a1.8 1.8 0 0 0 1.8-1.4l1.6-7.6H6"/></svg></span>
     <div class="htext"><h3>Best buys right now</h3><p>By what they do for your gap</p></div>
    </header>
    <ol class="dlist buys" id="d-buy"></ol></div>
+
  </div>
  <p class="hint">Ranked on progress against your own targets, so these move as you update the Backpack tab.
  Items with no target set are left out.</p>
@@ -200,16 +210,20 @@ var CONFIG = {
  </div>
 </section>
 
+</div><!-- /#app -->
+</main>
+
 <div class="footband">
- <p class="footquote">"A little planning today, a stronger tomorrow."</p>
- <div class="footsig">Fox Family</div>
+ <div class="wrap fin">
+  <p class="footquote">A little planning today,<br>a stronger tomorrow.</p>
+  <div class="footsig"><span>Fox</span><span>Family</span></div>
+ </div>
 </div>
-<footer>
+
+<footer class="wrap">
  <span>Speedups are counted in hours on pack contents and days on the backpack.</span>
  <span>Pack values from Torxim's WoS Corner at our state settings (FC5-Gen5, SR 46, RSS 25). Fan-made reference, not affiliated with Century Games.</span>
 </footer>
-</div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
