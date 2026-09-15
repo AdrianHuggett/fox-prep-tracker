@@ -9,11 +9,13 @@ var CURR={GBP:{symbol:'£',rate:1},USD:{symbol:'$',rate:1.27},EUR:{symbol:'€',
   AUD:{symbol:'A$',rate:1.93},CAD:{symbol:'C$',rate:1.74},PHP:{symbol:'₱',rate:71},
   BRL:{symbol:'R$',rate:7.1},NGN:{symbol:'₦',rate:1950},SGD:{symbol:'S$',rate:1.65}};
 var CUR={code:'GBP',symbol:'£',rate:1};
+var SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">';
 var ICO={
-  target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>',
-  bars:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg>',
-  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
-  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
+  target:SVG+'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><path d="M12 1.6v2.4M12 20v2.4M1.6 12H4M20 12h2.4"/></svg>',
+  bars:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 20v-6.5"/><path d="M12 20V5"/><path d="M19 20v-9.5"/></svg>',
+  coins:SVG+'<ellipse cx="12" cy="6.2" rx="7.6" ry="3.2"/><path d="M4.4 6.2v5.6c0 1.77 3.4 3.2 7.6 3.2s7.6-1.43 7.6-3.2V6.2"/><path d="M4.4 11.8v5.6c0 1.77 3.4 3.2 7.6 3.2s7.6-1.43 7.6-3.2v-5.6"/></svg>',
+  box:SVG+'<path d="M20.5 7.7 12 3 3.5 7.7 12 12.4l8.5-4.7Z"/><path d="M3.5 7.7v8.6L12 21l8.5-4.7V7.7"/><path d="M12 12.4V21"/></svg>',
+  calendar:SVG+'<rect x="3.2" y="5" width="17.6" height="16" rx="2.4"/><path d="M16 3v4M8 3v4M3.2 10h17.6"/></svg>'
 };
 function initials(email,name){
   name=(name||'').trim();
@@ -27,6 +29,9 @@ function identifyUser(u){
   var av=$('avatar'); if(av) av.textContent=initials(u.email,u.user_metadata&&u.user_metadata.name);
 }
 function money(v,dp){ return CUR.symbol+fmt(v*CUR.rate,dp===undefined?2:dp); }
+/* Torxim baselines are priced in USD; pack prices are held in GBP. Convert the
+   USD figure to the GBP base first so money() lands in the user's currency. */
+function baseMoney(usd){ return money(usd/((CURR.USD&&CURR.USD.rate)||1.27),1); }
 function fillCurrencyInputs(){
   var sel=$('cur-select'), sy=$('cur-symbol'), ra=$('cur-rate');
   if(!sel) return;
@@ -237,19 +242,22 @@ function renderTop(){
   D.packs.forEach(function(p){ if(n(uPacks[p.id])>0) marked++;
     if(calcPack(p,byName).verdict==='Must buy') gold++; });
   var avg=withT?sum/withT:0, bud=budget(), dleft=days();
+  var metPct=(withT?met/withT*100:0), avgPct=avg*100;
   $('stats').innerHTML=
     '<div class="stat c-blue"><span class="sicon">'+ICO.target+'</span><span class="lbl">Targets met</span>'+
     '<b>'+met+' / '+withT+'</b><small>'+behind+' behind after plan</small>'+
-    '<div class="bar"><i style="width:'+(withT?met/withT*100:0).toFixed(0)+'%;background:var(--good)"></i></div></div>'+
+    '<div class="barrow"><div class="bar"><i style="width:'+metPct.toFixed(0)+'%;background:var(--ice)"></i></div>'+
+    '<span class="barpct" style="color:var(--ice)">'+Math.round(metPct)+'%</span></div></div>'+
     '<div class="stat c-green"><span class="sicon">'+ICO.bars+'</span><span class="lbl">Average progress</span>'+
     '<b>'+Math.round(avg*100)+'%</b><small>across '+withT+' targets</small>'+
-    '<div class="bar"><i style="width:'+(avg*100).toFixed(0)+'%"></i></div></div>'+
-    '<div class="stat c-violet"><span class="sicon coin">'+esc(CUR.symbol)+'</span><span class="lbl">Monthly spend</span>'+
+    '<div class="barrow"><div class="bar"><i style="width:'+avgPct.toFixed(0)+'%;background:var(--good)"></i></div>'+
+    '<span class="barpct" style="color:var(--good)">'+Math.round(avgPct)+'%</span></div></div>'+
+    '<div class="stat c-violet"><span class="sicon">'+ICO.coins+'</span><span class="lbl">Monthly spend</span>'+
     '<b>'+money(bud)+'</b><small>'+esc(CUR.code)+'</small></div>'+
-    '<div class="stat c-ember"><span class="sicon">'+ICO.box+'</span><span class="lbl">Packs marked</span>'+
+    '<div class="stat c-orange"><span class="sicon">'+ICO.box+'</span><span class="lbl">Packs marked</span>'+
     '<b>'+marked+'</b><small>of '+D.packs.length+' &middot; '+gold+' must buy</small></div>'+
-    '<div class="stat c-blue hi"><span class="sicon">'+ICO.calendar+'</span><span class="lbl">Days to next SvS</span>'+
-    '<b>'+dleft+'</b><small>'+esc(D.settings.next_svs||'')+'</small></div>';
+    '<div class="stat svs"><span class="lbl">Days to next SvS</span>'+
+    '<b>'+dleft+'</b><span class="date">'+ICO.calendar+esc(D.settings.next_svs||'')+'</span></div>';
   $('c-all').textContent='All '+D.items.length;
   $('c-behind').textContent='Behind ('+behind+')';
   $('c-pall').textContent='All '+D.packs.length;
@@ -282,7 +290,7 @@ function renderDash(){
       '<span class="dic">'+esc(o.it.icon||'·')+'</span>'+
       '<span class="dname">'+esc(o.it.name)+'<em>'+fmt(o.c.raw)+' short</em></span>'+
       '<span class="dbarwrap">'+dbar(o.usd/mx*100,'var(--violet)')+'</span>'+
-      '<b class="dval">$'+fmt(o.usd)+'</b></li>'; }).join('')
+      '<b class="dval">'+baseMoney(o.usd)+'</b></li>'; }).join('')
     || '<li class="dempty">Nothing outstanding.</li>';
   var byName=itemMap();
   var buys=D.packs.map(function(p){ return {p:p,c:calcPack(p,byName)}; })
@@ -366,8 +374,10 @@ document.addEventListener('click',function(e){
 
 /* ---------- auth ---------- */
 function authMsg(t,ok){ var e=$('authmsg'); e.textContent=t||''; e.className='authmsg'+(ok?' ok':''); }
-function showAuth(){ $('auth').style.display=''; $('app').style.display='none'; $('userbar').style.display='none'; }
-function showApp(){ $('auth').style.display='none'; $('app').style.display=''; $('userbar').style.display=''; }
+function showAuth(){ $('auth').style.display=''; $('app').style.display='none'; $('userbar').style.display='none';
+  var nv=$('navtabs'); if(nv) nv.style.display='none'; }
+function showApp(){ $('auth').style.display='none'; $('app').style.display=''; $('userbar').style.display='';
+  var nv=$('navtabs'); if(nv) nv.style.display=''; }
 
 async function loadAll(){
   say('loading…');
